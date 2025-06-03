@@ -2,6 +2,7 @@ import os
 import json
 import datetime
 import random
+import io
 
 from flask import Flask, render_template, request, redirect, session, url_for, jsonify
 from flask_session import Session
@@ -59,11 +60,11 @@ def index():
 
 @app.route('/login')
 def login():
-    flow = Flow.from_client_secrets_file(
-        'client_secret.json',
-        scopes=SCOPES,
-        redirect_uri=REDIRECT_URI
-    )
+    flow = Flow.from_client_config(
+    json.loads(os.environ["GOOGLE_OAUTH_JSON"]),
+    scopes=SCOPES,
+    redirect_uri=REDIRECT_URI
+)
     authorization_url, state = flow.authorization_url()
     session['oauth_state'] = state
     return redirect(authorization_url)
