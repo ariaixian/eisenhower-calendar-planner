@@ -27,7 +27,8 @@ app.config.update(
     SESSION_PERMANENT=True,
     PERMANENT_SESSION_LIFETIME=3600,  # 1 hour
     SESSION_FILE_DIR=os.path.join(os.getcwd(), 'flask_sessions'),
-    SESSION_FILE_THRESHOLD=100
+    SESSION_FILE_THRESHOLD=100,
+    SESSION_COOKIE_NAME='session'  # ✅ THIS is the critical fix
 )
 
 Session(app)
