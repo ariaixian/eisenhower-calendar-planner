@@ -39,7 +39,8 @@ SCOPES = [
     'https://www.googleapis.com/auth/calendar.events',
     'https://www.googleapis.com/auth/calendar.readonly'
 ]
-REDIRECT_URI = 'http://127.0.0.1:5050/oauth2callback'
+REDIRECT_URI = os.environ.get("REDIRECT_URI", "http://127.0.0.1:5050/oauth2callback")
+
 
 
 @app.route('/')
