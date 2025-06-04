@@ -7,6 +7,7 @@
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
   <style>
+	  
     body {
       font-family: 'DM Sans', sans-serif;
       background-color: #FFF5FC;
@@ -43,6 +44,28 @@
   padding-bottom: 0;
   border: none;
 }
+.star {
+  position: fixed;
+  top: -20px;
+  left: 50%;
+  font-size: 18px;
+  color: #ffd700;
+  animation: fall 2s linear forwards;
+  z-index: 9999;
+  pointer-events: none;
+}
+
+@keyframes fall {
+  0% {
+    transform: translateY(0) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(100vh) rotate(360deg);
+    opacity: 0;
+  }
+}
+
 .logo {
   font-family: "Press Start 2P", system-ui;
   color: #edab50;
@@ -371,14 +394,11 @@
 
 <body>
 <div class="title-block">
-  <div class="logo-stack">
-    <div class="logo logo-small">THE EISENHOWER </div>
-    <div class="logo">MATRIX</div>
-  </div>
+  <h1 class="logo">THE EISENHOWER MATRIX</h1>
   <h2 class="subheading">you have all the weapons, now fight</h2>
   <div class="samurai idle"></div>
 </div>
-<div id="auth-buttons" style="position: absolute; top: 20px; right: 20px;">
+<div id="auth-buttons" style="position: fixed; top: 20px; right: 20px; z-index: 100;">
   {% if logged_in %}
     <button onclick="window.location.href='/logout'">🚪 Logout</button>
   {% else %}
@@ -493,12 +513,5 @@
 </div>
 {% endif %}
 
-</div>
-</div>
 </body>
 </html>
-
-
-
-
-
