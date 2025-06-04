@@ -39,7 +39,7 @@ SCOPES = [
     'https://www.googleapis.com/auth/calendar.events',
     'https://www.googleapis.com/auth/calendar.readonly'
 ]
-REDIRECT_URI = os.getenv("REDIRECT_URI", "http://127.0.0.1:5050/oauth2callback")
+REDIRECT_URI = os.getenv("REDIRECT_URI", "http://localhost:5000/oauth2callback")
 
 
 
@@ -211,4 +211,4 @@ def schedule():
 
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5050)
+    app.run(debug=True, port=5000)
