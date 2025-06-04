@@ -375,7 +375,7 @@
   <h2 class="subheading">you have all the weapons, now fight</h2>
   <div class="samurai idle"></div>
 </div>
-<div id="auth-buttons" style="position: absolute; top: 20px; right: 20px;">
+<div id="auth-buttons" style="position: fixed; top: 20px; right: 20px; z-index: 100;">
   {% if logged_in %}
     <button onclick="window.location.href='/logout'">🚪 Logout</button>
   {% else %}
@@ -490,8 +490,6 @@
 </div>
 {% endif %}
 
-</div>
-</div>
 </body>
 </html>
 
