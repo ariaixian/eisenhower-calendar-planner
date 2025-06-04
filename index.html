@@ -7,6 +7,7 @@
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
   <style>
+	  
     body {
       font-family: 'DM Sans', sans-serif;
       background-color: #FFF5FC;
@@ -43,6 +44,28 @@
   padding-bottom: 0;
   border: none;
 }
+.star {
+  position: fixed;
+  top: -20px;
+  left: 50%;
+  font-size: 18px;
+  color: #ffd700;
+  animation: fall 2s linear forwards;
+  z-index: 9999;
+  pointer-events: none;
+}
+
+@keyframes fall {
+  0% {
+    transform: translateY(0) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(100vh) rotate(360deg);
+    opacity: 0;
+  }
+}
+
 .logo {
   font-family: "Press Start 2P", system-ui;
   color: #edab50;
