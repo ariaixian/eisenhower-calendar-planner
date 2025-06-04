@@ -78,24 +78,21 @@ def inject_random():
 
 @app.route('/oauth2callback')
 def oauth2callback():
-    # Debug prints (optional, remove in prod)
     print("Returned state:", request.args.get("state"))
     print("Expected state:", session.get("oauth_state"))
 
     if request.args.get('state') != session.get('oauth_state'):
         return "State mismatch — possible CSRF attack", 400
 
-    # Rebuild flow WITHOUT setting state manually
-    flow = Flow.from_client_secrets_file(
-        'client_secret.json',
+    # Use from_client_config instead of from_client_secrets_file!
+    flow = Flow.from_client_config(
+        json.loads(os.environ["GOOGLE_OAUTH_JSON"]),
         scopes=SCOPES,
         redirect_uri=REDIRECT_URI
     )
 
-    # Complete token exchange
     flow.fetch_token(authorization_response=request.url)
 
-    # Save credentials into session
     credentials = flow.credentials
     session['credentials'] = {
         'token': credentials.token,
