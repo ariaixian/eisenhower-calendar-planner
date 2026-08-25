@@ -1,4 +1,3 @@
-import json
 import random
 from datetime import datetime, timedelta
 import pytz
@@ -149,20 +148,12 @@ def schedule_tasks(tasks, creds, week_start, week_end,
             })
 
 
-    # --------- Step 4: Return or Save Summary ----------
-    print("🔧 Received task list:", tasks)
-    print("📅 Week range:", week_start, "to", week_end)
-    print("🧠 Workouts:", workouts)
-    print("🕓 Work window:", work_start, "→", work_end)
-    print("🍽️ Meals:", breakfast_start, breakfast_duration, lunch_start, lunch_duration)
+    # --------- Step 4: Return Summary ----------
     if unscheduled:
         task_names = ', '.join(t["name"] for t in unscheduled)
         warning = (
             f"⚠️ {len(unscheduled)} task(s) could not be scheduled due to time constraints:\n{task_names}"
         )
         return [], warning
-
-    with open('scheduled_tasks.json', 'w') as f:
-        json.dump(scheduled, f, indent=2)
 
     return scheduled, ""

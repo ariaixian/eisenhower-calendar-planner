@@ -2,7 +2,6 @@ import os
 import json
 import datetime
 import random
-import io
 import secrets
 
 from flask import Flask, render_template, request, redirect, session, url_for, jsonify
@@ -11,7 +10,6 @@ from google_auth_oauthlib.flow import Flow
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 from EQ_logic import schedule_tasks
-from datetime import datetime as dt, timedelta
 
 app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET_KEY") or secrets.token_hex(32)
@@ -38,6 +36,15 @@ SCOPES = [
     'https://www.googleapis.com/auth/calendar.events',
     'https://www.googleapis.com/auth/calendar.readonly'
 ]
+
+QUADRANTS = {
+    "urgent_important",
+    "important_not_urgent",
+    "not_important_urgent",
+    "not_important_not_urgent",
+}
+
+
 def oauth_client_config():
     """Load OAuth configuration from the environment, never the repository."""
     raw_config = os.getenv("GOOGLE_OAUTH_JSON")
@@ -60,16 +67,7 @@ def oauth_client_details():
 @app.route('/')
 def index():
     logged_in = 'credentials' in session
-
-    gif_folder = os.path.join(app.root_path, "static", "gifs")
-    gif_files = [f for f in os.listdir(gif_folder) if f.endswith(".gif")]
-    selected_gif = random.choice(gif_files) if gif_files else None
-
-    return render_template(
-        'index.html',
-        logged_in=logged_in,
-        gif_filename=f"gifs/{selected_gif}" if selected_gif else None
-    )
+    return render_template('index.html', logged_in=logged_in)
 
 @app.route('/login')
 def login():
@@ -84,11 +82,6 @@ def login():
     )
     session['oauth_state'] = state
     return redirect(authorization_url)
-
-@app.context_processor
-def inject_random():
-    import random
-    return dict(random=random.random)
 
 @app.route('/oauth2callback')
 def oauth2callback():
@@ -148,6 +141,56 @@ def generate_workouts_from_date_range(start_str, end_str, runCount, indoorCount)
            [{"type": "🏋️ Functional", "day": d} for d in indoor_days]
 
 
+def validate_schedule_request(data):
+    required = {
+        "tasks", "weekStart", "weekEnd", "workStart", "workEnd",
+        "urgentImportantDays", "urgentImportantHours",
+        "importantNotUrgentDays", "importantNotUrgentHours",
+        "notImportantUrgentDays", "notImportantUrgentHours",
+        "notUrgentNotImportantDays", "notUrgentNotImportantHours",
+        "runCount", "indoorCount", "breakfastStart", "breakfastDuration",
+        "lunchStart", "lunchDuration",
+    }
+    if not isinstance(data, dict):
+        return "Request body must be a JSON object."
+    missing = sorted(required.difference(data))
+    if missing:
+        return f"Missing required fields: {', '.join(missing)}."
+
+    try:
+        start_date = datetime.datetime.strptime(data["weekStart"], "%Y-%m-%d").date()
+        end_date = datetime.datetime.strptime(data["weekEnd"], "%Y-%m-%d").date()
+        datetime.datetime.strptime(data["workStart"], "%H:%M")
+        datetime.datetime.strptime(data["workEnd"], "%H:%M")
+        datetime.datetime.strptime(data["breakfastStart"], "%H:%M")
+        datetime.datetime.strptime(data["lunchStart"], "%H:%M")
+    except (TypeError, ValueError):
+        return "Dates and times must use YYYY-MM-DD and HH:MM formats."
+
+    if end_date < start_date or (end_date - start_date).days > 13:
+        return "The schedule range must be between 1 and 14 days."
+    if data["workEnd"] <= data["workStart"]:
+        return "Work end time must be later than work start time."
+    if not isinstance(data["tasks"], list) or not data["tasks"]:
+        return "Add at least one task before scheduling."
+    for task in data["tasks"]:
+        if not isinstance(task, dict) or not str(task.get("name", "")).strip():
+            return "Every task needs a name."
+        if task.get("quadrant") not in QUADRANTS:
+            return "Every task must belong to a valid Eisenhower quadrant."
+
+    numeric_fields = required.difference({
+        "tasks", "weekStart", "weekEnd", "workStart", "workEnd",
+        "breakfastStart", "lunchStart",
+    })
+    try:
+        if any(float(data[field]) < 0 for field in numeric_fields):
+            return "Durations and counts cannot be negative."
+    except (TypeError, ValueError):
+        return "Durations and counts must be numeric."
+    return None
+
+
 def get_free_blocks(service, day, work_start, work_end, tz):
     start_of_day = tz.localize(datetime.datetime.combine(day, datetime.datetime.strptime(work_start, "%H:%M").time()))
     end_of_day = tz.localize(datetime.datetime.combine(day, datetime.datetime.strptime(work_end, "%H:%M").time()))
@@ -188,7 +231,10 @@ def schedule():
         client_id=client['client_id'],
         client_secret=client['client_secret'],
     )
-    data = request.get_json()
+    data = request.get_json(silent=True)
+    validation_error = validate_schedule_request(data)
+    if validation_error:
+        return jsonify({"status": "error", "error": validation_error}), 400
 
     events, warning = schedule_tasks(
         data["tasks"], creds, data["weekStart"], data["weekEnd"],
@@ -221,4 +267,7 @@ def schedule():
 
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    app.run(
+        debug=os.getenv("FLASK_DEBUG") == "1",
+        port=int(os.getenv("PORT", "5000")),
+    )

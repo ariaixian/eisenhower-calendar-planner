@@ -107,25 +107,6 @@
 }
 
 
-.gif-gallery {
-  margin-top: 40px;
-  width: 300px;
-  height: auto;
-  border-radius: 12px;
-  overflow: hidden;
-  display: block;
-  margin-left: auto;
-  margin-right: auto;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-}
-
-.gif-gallery img {
-  width: 100%;
-  border-radius: 12px;
-}
-
-
-
 .top-bar {
   position: absolute;
   top: 20px;
@@ -506,12 +487,7 @@
 
   <button id="submitBtn">Schedule this week</button>
 
-  <script src="{{ url_for('static', filename='script.js') }}?v={{ random() }}"></script>
-  {% if gif_filename %}
-<div class="gif-gallery">
-  <img src="{{ url_for('static', filename=gif_filename) }}" alt="random gif">
-</div>
-{% endif %}
+  <script src="{{ url_for('static', filename='script.js') }}"></script>
 
 </body>
 </html>

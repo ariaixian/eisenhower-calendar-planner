@@ -1,6 +1,3 @@
-console.log("✅ script.js loaded");
-
-// 🧠 Make this global so both submitTasks and onload can access it
 const quadrants = [
   'urgent_important',
   'important_not_urgent',
@@ -21,10 +18,14 @@ function addTask() {
   task.className = "task entering";
   task.setAttribute("data-name", name);
   task.id = `task-${Date.now()}`;
-  task.innerHTML = `
-    ${name}
-    <button class="delete-btn" onclick="deleteTask(this)">❌</button>
-  `;
+  task.appendChild(document.createTextNode(name));
+  const deleteButton = document.createElement("button");
+  deleteButton.className = "delete-btn";
+  deleteButton.type = "button";
+  deleteButton.setAttribute("aria-label", `Delete ${name}`);
+  deleteButton.textContent = "×";
+  deleteButton.addEventListener("click", () => deleteTask(deleteButton));
+  task.appendChild(deleteButton);
 
   document.getElementById("urgent_important").appendChild(task);
   void task.offsetWidth;
@@ -103,7 +104,7 @@ window.onload = () => {
   fallbackTolerance: 0            // 🔥 Fastest response on fallback
 });
     } else {
-      console.warn(`⚠️ Sortable skipped: ID "${q}" not found`);
+      console.warn(`Sortable skipped: ID "${q}" not found`);
     }
   });
 
@@ -138,7 +139,6 @@ function spawnStars(count = 50) {
 
 function submitTasks() {
   spawnStars();
-  console.log("🧠 submitTasks called");
   const tasks = [];
   const weekStart = document.getElementById("weekStart").value;
   const weekEnd = document.getElementById("weekEnd").value;
@@ -167,7 +167,7 @@ function submitTasks() {
   });
 
   if (tasks.length === 0) {
-    alert("❌ No tasks found in the quadrants!");
+    alert("Add at least one task before scheduling.");
     return;
   }
 
@@ -193,9 +193,6 @@ function submitTasks() {
     workEnd
   };
 
-  console.log("▶️ Submitting tasks...");
-  console.log("📦 Payload:", JSON.stringify(payload, null, 2));
-
   fetch('/schedule', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -203,24 +200,19 @@ function submitTasks() {
     body: JSON.stringify(payload)
   })
   .then(response => {
-    console.log("📥 Response status:", response.status);
-    return response.json();
+    return response.json().then(data => ({ ok: response.ok, data }));
   })
-  .then(data => {
-    console.log("📥 Response data:", data);
-    if (data.status === "success") {
-      if (data.warning && data.warning.length > 0) {
+  .then(({ ok, data }) => {
+    if (ok && data.status === "success") {
+      if (data.warning) {
         alert(data.warning);
       } else {
-        alert("✅ Tasks scheduled successfully!");
+        alert("Tasks scheduled successfully.");
       }
     } else {
-      alert("❌ Failed to schedule tasks.");
+      alert(data.error || "Unable to schedule these tasks.");
     }
   })
-  .catch(error => {
-    console.error("❌ Unexpected error:", error);
-    alert("❌ Failed to schedule tasks.");
-  });
+  .catch(() => alert("Unable to reach the scheduling service."));
 
 }
