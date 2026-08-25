@@ -3,6 +3,7 @@ import json
 import datetime
 import random
 import io
+import secrets
 
 from flask import Flask, render_template, request, redirect, session, url_for, jsonify
 from flask_session import Session
@@ -10,18 +11,13 @@ from google_auth_oauthlib.flow import Flow
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 from EQ_logic import schedule_tasks
-from flask_cors import CORS
 from datetime import datetime as dt, timedelta
-import os
-import random
-from flask import Flask, render_template
-
-# Allow insecure transport for local dev (no HTTPS)
-os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
 
 app = Flask(__name__)
-CORS(app)
-app.secret_key = os.getenv("FLASK_SECRET_KEY", "dev_secret_fallback")
+app.secret_key = os.getenv("FLASK_SECRET_KEY") or secrets.token_hex(32)
+
+REDIRECT_URI = os.getenv("REDIRECT_URI", "http://localhost:5000/oauth2callback")
+IS_HTTPS = REDIRECT_URI.startswith("https://")
 
 app.config.update(
     SESSION_TYPE='filesystem',
@@ -29,7 +25,10 @@ app.config.update(
     PERMANENT_SESSION_LIFETIME=3600,  # 1 hour
     SESSION_FILE_DIR=os.path.join(os.getcwd(), 'flask_sessions'),
     SESSION_FILE_THRESHOLD=100,
-    SESSION_COOKIE_NAME='session'  # ✅ THIS is the critical fix
+    SESSION_COOKIE_NAME='session',
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE='Lax',
+    SESSION_COOKIE_SECURE=IS_HTTPS,
 )
 
 Session(app)
@@ -39,15 +38,27 @@ SCOPES = [
     'https://www.googleapis.com/auth/calendar.events',
     'https://www.googleapis.com/auth/calendar.readonly'
 ]
-REDIRECT_URI = os.getenv("REDIRECT_URI", "http://localhost:5000/oauth2callback")
+def oauth_client_config():
+    """Load OAuth configuration from the environment, never the repository."""
+    raw_config = os.getenv("GOOGLE_OAUTH_JSON")
+    if not raw_config:
+        raise RuntimeError("GOOGLE_OAUTH_JSON is required for Google Calendar login")
+
+    config = json.loads(raw_config)
+    if not (config.get("web") or config.get("installed")):
+        raise RuntimeError("GOOGLE_OAUTH_JSON must contain a web or installed OAuth client")
+    return config
+
+
+def oauth_client_details():
+    config = oauth_client_config()
+    return config.get("web") or config["installed"]
 
 
 
 
 @app.route('/')
 def index():
-    print("SESSION CONTENT:", dict(session))  # 👈 Debug print
-
     logged_in = 'credentials' in session
 
     gif_folder = os.path.join(app.root_path, "static", "gifs")
@@ -63,11 +74,14 @@ def index():
 @app.route('/login')
 def login():
     flow = Flow.from_client_config(
-    json.loads(os.environ["GOOGLE_OAUTH_JSON"]),
-    scopes=SCOPES,
-    redirect_uri=REDIRECT_URI
-)
-    authorization_url, state = flow.authorization_url()
+        oauth_client_config(),
+        scopes=SCOPES,
+        redirect_uri=REDIRECT_URI,
+    )
+    authorization_url, state = flow.authorization_url(
+        access_type="offline",
+        include_granted_scopes="true",
+    )
     session['oauth_state'] = state
     return redirect(authorization_url)
 
@@ -78,15 +92,11 @@ def inject_random():
 
 @app.route('/oauth2callback')
 def oauth2callback():
-    print("Returned state:", request.args.get("state"))
-    print("Expected state:", session.get("oauth_state"))
-
     if request.args.get('state') != session.get('oauth_state'):
         return "State mismatch — possible CSRF attack", 400
 
-    # Use from_client_config instead of from_client_secrets_file!
     flow = Flow.from_client_config(
-        json.loads(os.environ["GOOGLE_OAUTH_JSON"]),
+        oauth_client_config(),
         scopes=SCOPES,
         redirect_uri=REDIRECT_URI
     )
@@ -98,8 +108,6 @@ def oauth2callback():
         'token': credentials.token,
         'refresh_token': credentials.refresh_token,
         'token_uri': credentials.token_uri,
-        'client_id': credentials.client_id,
-        'client_secret': credentials.client_secret,
         'scopes': credentials.scopes
     }
 
@@ -174,7 +182,12 @@ def schedule():
     if 'credentials' not in session:
         return 'User not logged in', 401
 
-    creds = Credentials(**session['credentials'])
+    client = oauth_client_details()
+    creds = Credentials(
+        **session['credentials'],
+        client_id=client['client_id'],
+        client_secret=client['client_secret'],
+    )
     data = request.get_json()
 
     events, warning = schedule_tasks(
